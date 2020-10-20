@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="serial_controllers" type="GPS_serial" name="GPS_serial"/>
+	<node pkg="serial_controllers" type="GPS_Deal" name="GPS_Deal"/>
+	<node pkg="serial_controllers" type="IMU_serial" name="IMU_serial"/>
+	<node pkg="serial_controllers" type="Test_serial" name="Test_serial"/>
+</launch>
