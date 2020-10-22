@@ -26,17 +26,15 @@
 #include "serial_controllers/Pulse.h"
 #include "serial_controllers/AGV_Back.h"
 
-#define r_BUFFERSIZE 	21				//接收数组的大小
-#define s_BUFFERSIZE	8				//发送数组的大小 数据头（1字节）+命令字（1个字节）+数据（4个字节）+数据尾（2个字节）
-#define res_data_length	8				//用于判断接收是否正确
-
-#define ID_sed_gear			0x41			//发送命令ID--档位控制
-#define ID_sed_angle		0x42			//发送命令ID--转角控制
-#define ID_sed_angle_vel	0x43			//发送命令ID--转动速度控制
-#define ID_sed_vel			0x44			//发送命令ID--速度控制
-#define ID_sed_bark			0x45			//发送命令ID--制动控制
-#define ID_sed_park			0x46			//发送命令ID--泊车控制
-#define ID_sed_odom			0x47			//发送命令ID--里程计控制
+#define r_BUFFERSIZE 	100				//接收数组的大小
+#define s_BUFFERSIZE	13				//发送数组的大小
+#define ID_sed_gear			0x41			//返回命令ID--档位控制
+#define ID_sed_angle		0x42			//返回命令ID--转角控制
+#define ID_sed_angle_vel	0x43			//返回命令ID--转动速度控制
+#define ID_sed_vel			0x44			//返回命令ID--速度控制
+#define ID_sed_bark			0x45			//返回命令ID--制动控制
+#define ID_sed_park			0x46			//返回命令ID--泊车控制
+#define ID_sed_odom			0x47			//返回命令ID--里程计控制
 #define ID_rec_vel			0x0D			//命令ID
 
 using std::string;
@@ -48,24 +46,13 @@ using std::vector;
 using std::hex;
 
 int USART_RX_STA = 0;					//串口接受控制标致
-float rat = 1000.0f;					//转速转换比，执行数度调整比例
-float D = 0.5f;							//两轮间距，单位是m
 float linear_temp = 0, angular_temp=0;	//暂存的线速度和角速度
 
 unsigned char data_begain_0 = 0x24;				//“$”字符
 unsigned char data_terminal_0 = 0x0d;			//“/r”字符
 unsigned char data_terminal_1 = 0x0a;			//“/n”字符
-/*
-unsigned char Send_data_Gear[s_BUFFERSIZE] = {data_begain_0,ID_sed_gear,' ',' ',' ',' ',data_terminal_0,data_terminal_1};	//要发送给串口的数据
-unsigned char Send_data_Angle[s_BUFFERSIZE] = {data_begain_0,ID_sed_angle,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-unsigned char Send_data_Angle_vel[s_BUFFERSIZE] = {data_begain_0,ID_sed_angle_vel,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-unsigned char Send_data_Vel[s_BUFFERSIZE] = {data_begain_0,ID_sed_vel,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-unsigned char Send_data_Bark[s_BUFFERSIZE] = {data_begain_0,ID_sed_bark,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-unsigned char Send_data_Park[s_BUFFERSIZE] = {data_begain_0,ID_sed_park,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-unsigned char Send_data_Odom[s_BUFFERSIZE] = {data_begain_0,ID_sed_odom,' ',' ',' ',' ',data_terminal_0,data_terminal_1};
-*/
-unsigned char Send_data[13] = {0x24,0x24,0,0,0,0,0,0,0,0,0,0x0d,0x0a};
-unsigned char RX_Buffer[100];
+unsigned char Send_data[s_BUFFERSIZE] = {0x24,0x24,0,0,0,0,0,0,0,0,0,0x0d,0x0a};
+unsigned char RX_Buffer[r_BUFFERSIZE];
 
 //串口接收状态
 struct RX_STA
@@ -78,89 +65,6 @@ struct RX_STA
 serial::Serial my_serial;
 serial_controllers::AGV_Back AGV_back;
 serial_controllers::Pulse Wheel_Pulse;	//stm32返回的左右轮脉冲
-/*
-//回调函数，订阅cmd_vel，向串口发送数据
-void callback(const geometry_msgs::Twist::ConstPtr & cmd_input)
-{
-	angular_temp = cmd_input->angular.z;			//获得cmd_vel的角速度m/s
-	linear_temp  = cmd_input->linear.x;				//获得cmd_vel的线速度弧度/s
-
-	//转换为轮子的转速和转向角度
-	//linear_speed_data.Data = linear_temp*rat;			//mm/s
-	linear_speed_data.Data = linear_temp;
-	//angular_data.Data = asin(880/(linear_temp*1000/angular_temp))*rat;	//弧度*1000
-	//angular_data.Data = angular_temp;
-
-	//将得到的速度、角度信息填充到发送数组中
-	for(int i = 0; i<4; i++)
-	{
-		speed_data[i] = linear_speed_data.data[i];
-		speed_data[i+4] = angular_data.data[i];
-	}
-	//将结尾标志符写入数组
-	speed_data[8] = data_terminal_0;
-	speed_data[9] = data_terminal_1;
-	//串口发送
-	my_serial.write(speed_data,10);
-}
-*/
-
-
-/*
-void callback(const serial_controllers::STM32_control::ConstPtr & cmd_input)
-{
-		Gear_cmd.Data = cmd_input->Gear;
-		for(int i = 0; i<4; i++)
-			{
-			Send_data_Gear[i+2] = Gear_cmd.data[i];
-			}
-
-		Angle_cmd.Data = (int)((cmd_input->Angle+90)/0.043945);
-		for(int i = 0; i<4; i++)
-			{
-				Send_data_Angle[i+2] = Angle_cmd.data[i];
-			}
-
-		Angle_vel_cmd.Data = (int)(cmd_input->Angle_vel/0.073242);
-		for(int i = 0; i<4; i++)
-			{
-			Send_data_Angle_vel[i+2] = Angle_vel_cmd.data[i];
-			}
-
-		Vel_cmd.Data = (int)(cmd_input->Vel/0.04) ;
-		for(int i = 0; i<4; i++)
-			{
-			Send_data_Vel[i+2] = Vel_cmd.data[i];
-			}
-
-		Bark_cmd.Data = (int)(cmd_input->Brak/0.390625);
-		for(int i = 0; i<4; i++)
-			{
-				Send_data_Bark[i+2] = Bark_cmd.data[i];
-			}
-		//my_serial.write(Send_data_Bark,s_BUFFERSIZE);
-
-		Park_cmd.Data = cmd_input->Park ;
-		for(int i = 0; i<4; i++)
-			{
-			Send_data_Park[i+2] = Park_cmd.data[i];
-			}
-
-		Odom_cmd.Data = cmd_input->Odom ;
-		for(int i = 0; i<4; i++)
-			{
-			Send_data_Odom[i+2] = Odom_cmd.data[i];
-			}
-
-		//my_serial.write(Send_data_Gear,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Angle,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Angle_vel,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Vel,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Bark,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Park,s_BUFFERSIZE);
-		//my_serial.write(Send_data_Odom,s_BUFFERSIZE);
-}
-*/
 
 void callback(const serial_controllers::STM32_control::ConstPtr & cmd_input)
 {
@@ -176,9 +80,8 @@ void callback(const serial_controllers::STM32_control::ConstPtr & cmd_input)
 	Send_data[9] = (char)(Angle_vel&0xff);						//转角速度
 	Send_data[10] = (char)((Angle_vel>>8)&0xff);						//转角速度
 	Send_data[11] = data_terminal_0;
-	my_serial.write(Send_data,13);
-	cout<<"fasong"<<endl;
-	}
+	my_serial.write(Send_data,s_BUFFERSIZE);
+}
 
 
 int main(int argc,char **argv)
@@ -208,38 +111,36 @@ int main(int argc,char **argv)
 			return -1;
 			}
 
-	RX_STA.Heard = 0x68;
-	RX_STA.Length = 0;
-	RX_STA.State = 0;
 	ros::Rate loop_rate(20);
-
-	my_serial.read(my_serial.available());
 	while(ros::ok())
 	{
 		ros::spinOnce();
 		if(my_serial.available())				//如果接受到数据
 		{
-			cout<<"受到"<<endl;
 			int len;
-			len = my_serial.read(RX_Buffer,my_serial.available());	//将接收到的数据保存在buffer中，返回数据长度
-			for(int i=0;i<len;i++)cout<<hex<<(int)RX_Buffer[i]<<"  ";	//将接收到的数据输出到终端
-			cout<<endl;
-			if(RX_Buffer[0]==RX_STA.Heard)							//与IMU采用相同的通讯协议
+			len = my_serial.available();
+			if(len<100)
+			{
+			my_serial.read(RX_Buffer,len);	//将接收到的数据保存在buffer中，返回数据长度
+			//for(int i=0;i<len;i++)cout<<hex<<(int)RX_Buffer[i]<<"  ";	//将接收到的数据输出到终端
+			//cout<<endl;
+			if(RX_Buffer[len-1]==data_terminal_0&&RX_Buffer[len-2]==data_terminal_1)							//与IMU采用相同的通讯协议
 			{
 				int Sum = 0;
-				for(int i=0;i<len-2;i++)
+				for(int i=0;i<len-3;i++)
 				{
 					Sum += RX_Buffer[i+1];
-				}if((Sum&0xff) == RX_Buffer[len-1])RX_STA.State = RX_Buffer[1];
+				}if((Sum&0xff) == RX_Buffer[len-3])RX_STA.State = RX_Buffer[0];
 			}
-
 			switch(RX_Buffer[0])
 			{
-				case 0x42:
+				case 0x42:			//角度返回为 命令字0x42 + 角度低8位 + 角度高8位 + 校验和 + 数据尾部2字节
 						AGV_back.back_angle = ((int)RX_Buffer[1] + (int)RX_Buffer[2]*256)*0.043975 - 90;
-				pub.publish(AGV_back);
+						RX_STA.State = 0;
 				break;
 			}
+			pub.publish(AGV_back);
+			}else my_serial.read(len);
 		}
 			loop_rate.sleep();
 			/*

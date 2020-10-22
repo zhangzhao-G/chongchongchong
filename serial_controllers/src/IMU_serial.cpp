@@ -88,10 +88,10 @@ int main(int argc, char **argv)
 					IMU_RX_STA.State = 0;
 
 					int len;
-					len = IMU_serial.read(IMU_RX_Buffer,IMU_serial.available());	//将接收到的数据保存在buffer中，返回数据长度
-					//for(int i=0;i<len;i++)cout<<hex<<(int)IMU_RX_Buffer[i]<<"  ";	//将接收到的数据输出到终端
-					//cout<<endl;
-
+					len = IMU_serial.available();
+					if(len<100)
+					{
+					IMU_serial.read(IMU_RX_Buffer,len);	//将接收到的数据保存在buffer中，返回数据长度
 					unsigned char IMU_RX_Data[100]; 				//数据拆解
 					//校验数据
 					if(IMU_RX_Buffer[0] == 0x68)					//若收到的第一个字符为0x68
@@ -123,15 +123,6 @@ int main(int argc, char **argv)
 						if(IMU_RX_Data[6]==1)imu_data.angular_velocity.z = -(imu_data.angular_velocity.z);
 						if(IMU_RX_Data[12]==1)imu_data.linear_acceleration.y = -(imu_data.linear_acceleration.y);
 						if(IMU_RX_Data[18]==1)imu_data.orientation.z = -(imu_data.orientation.z);
-
-						//Current_Vel = Last_Vel + (Last_Acc + imu_data.linear_acceleration.y)/50;
-						//Unit_Y = Current_Vel/25;
-						//Current_Y = Current_Y + Unit_Y;
-						//Last_Acc = imu_data.linear_acceleration.y;
-						//Last_Vel = Current_Vel;
-						//cout<<imu_data.linear_acceleration.y<<'\t'<<Current_Vel<<'\t'<<Unit_Y<<'\t'<<Current_Y<<endl;
-
-						//imu_data.linear_acceleration.z = Current_Y;
 						IMU_read_pub.publish(imu_data);
 						IMU_RX_STA.Length = 0;
 						IMU_RX_STA.State = 0;
@@ -139,6 +130,7 @@ int main(int argc, char **argv)
 						{
 							ROS_INFO("return:%d",IMU_RX_STA.State);
 						}
+					}else IMU_serial.read(len);
 				}
 		ros::spinOnce();
 		loop_rate.sleep();

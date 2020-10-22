@@ -197,9 +197,7 @@ int GPS_data_deal(const std::string s, double &lat,double &lon,double &angle)	//
 #if GPS_GNGGA
 	if(GPS_vector[0] == "$GNGGA")	//检验GPS数据
 	{
-		cout<<GPS_vector[7]<<endl;
-		if(GPS_vector[6] !="0")
-		{
+		if(std::atof(GPS_vector[6].c_str())==4.0){
 			lat = (double)std::atof(GPS_vector[2].c_str())/100;		//解析出纬度
 			int ilat = (int)floor(lat);
 			lat = ilat + (lat - ilat)*100/60;
@@ -207,15 +205,9 @@ int GPS_data_deal(const std::string s, double &lat,double &lon,double &angle)	//
 			int ilon = (int)floor(lon);
 			lon = ilon + (lon - ilon)*100/60;
 		}
-		if(GPS_vector[6] == "4")count_PTR++;
-		else count_PTR=0;
-		if(count_PTR > 10)
-			{
-			count_PTR--;
-			PTR = 1;
-			}else PTR =0;
 	}else if(GPS_vector[1] == "AVR")
 		{
+		if(std::atof(GPS_vector[10].c_str())==2.0||std::atof(GPS_vector[10].c_str())==3.0)
 			angle = std::atof(GPS_vector[3].c_str());
 		}
 #endif
@@ -293,7 +285,7 @@ int main(int argc,char **argv)
 							i = end;
 							GPS_STA = 1;//找到了一个完整的数据包
 							GPS_data_deal(GPS_rec.substr(start, end-start+2),Point_GPS.lat,Point_GPS.lon,Point_GPS.angle);//进行数据解析得到经纬度
-							//if(PTR == 1){
+
 							#if	Pub_GPS_MSG//GPS数据发布
 							GPS_data.lat = Point_GPS.lat;				//填充消息——纬度
 							GPS_data.lon = Point_GPS.lon;				//填充消息——经度
@@ -321,7 +313,7 @@ int main(int argc,char **argv)
 						    AGV.z = 0 - Point_xyz.Angle;
 						    GPS_Deal_pub.publish(AGV);
 						    #endif
-							//}
+
 							if(i+5<GPS_rec.length())			//如果数据尾后面的数据大于4个则继续循环寻找数据，否着跳出循环
 							{
 								GPS_rec = GPS_rec.substr(end+2);
