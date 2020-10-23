@@ -43,6 +43,7 @@ struct GPS
     double lat;
     double lon;
     double angle;
+    int sta;
 };
 
 std::string GPS_rec;				//GPS接收到的数据
@@ -152,7 +153,7 @@ int Campare_Start(int a,int b)
 }
 
 //解析GPS数据
-int GPS_data_deal(const std::string s, double &lat,double &lon,double &angle)	//传入完整的GPS数据包（包括数据头和数据尾），返回经纬度
+int GPS_data_deal(const std::string s, double &lat,double &lon,double &angle,int &sta)	//传入完整的GPS数据包（包括数据头和数据尾），返回经纬度
 {
 	std::vector<std::string> GPS_vector;		//定义容器
 	std::string::size_type pos_1,pos_2;
@@ -204,10 +205,11 @@ int GPS_data_deal(const std::string s, double &lat,double &lon,double &angle)	//
 			lon = (double)std::atof(GPS_vector[4].c_str())/100;		//解析出经度
 			int ilon = (int)floor(lon);
 			lon = ilon + (lon - ilon)*100/60;
-		}
+			sta = 1;
+		}else sta = 0;
 	}else if(GPS_vector[1] == "AVR")
 		{
-		if(std::atof(GPS_vector[10].c_str())==2.0||std::atof(GPS_vector[10].c_str())==3.0)
+		//if(std::atof(GPS_vector[10].c_str())==2.0||std::atof(GPS_vector[10].c_str())==3.0)
 			angle = std::atof(GPS_vector[3].c_str());
 		}
 #endif
@@ -284,7 +286,7 @@ int main(int argc,char **argv)
 						{
 							i = end;
 							GPS_STA = 1;//找到了一个完整的数据包
-							GPS_data_deal(GPS_rec.substr(start, end-start+2),Point_GPS.lat,Point_GPS.lon,Point_GPS.angle);//进行数据解析得到经纬度
+							GPS_data_deal(GPS_rec.substr(start, end-start+2),Point_GPS.lat,Point_GPS.lon,Point_GPS.angle,Point_GPS.sta);//进行数据解析得到经纬度
 
 							#if	Pub_GPS_MSG//GPS数据发布
 							GPS_data.lat = Point_GPS.lat;				//填充消息——纬度
@@ -311,6 +313,7 @@ int main(int argc,char **argv)
 						    AGV.x = Point_xyz.X;
 						    AGV.y = Point_xyz.Y;
 						    AGV.z = 0 - Point_xyz.Angle;
+						    if(Point_GPS.sta == 1)
 						    GPS_Deal_pub.publish(AGV);
 						    #endif
 

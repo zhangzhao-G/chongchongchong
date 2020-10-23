@@ -9,7 +9,7 @@
 #include <serial_controllers/AGV_Back.h>
 
 #define IPI 0.0174532925199433333333  //没一度对应的弧度
-#define LL  2
+#define LL  2.5
 #define xxx 0
 #define yyy -5
 #define XXX 0
@@ -18,7 +18,7 @@
 #define Target_remote_x 0
 #define Target_remote_y 15
 #define Target_near_x 0
-#define Target_near_y 0
+#define Target_near_y 1.5
 struct Point
 {
 	float X;
@@ -46,7 +46,7 @@ struct AGV_STA
 	float Unit_Y;				//单位时间前进Y
 	float Current_Vel;			//当前速度
 	float unit_Dis;
-	int GET;				//是否到达目标点
+	int GET;				//当前状态0--停止/1--向前直行/2--远端掉头/3--返回直行/4--进端掉头
 };
 
 struct AGV_Mod MY_AGV = {
@@ -250,9 +250,9 @@ void turn_back_remote()
 
 void turn_back_near()
 {
-	if(AGV_POS.Current_Angle_GPS>-135&&ptr_turnback_remote==0)
-		ptr_turnback_remote=1;
-	switch(ptr_turnback_remote)
+	if((AGV_POS.Current_Angle_GPS>-120)&&(AGV_POS.Current_Angle_GPS<0)&&(ptr_turnback_near==0))
+		ptr_turnback_near=1;
+	switch(ptr_turnback_near)
 	{
 	case 0:
 		Test_cmd.Angle = 24;
@@ -311,12 +311,28 @@ int main(int argc,char **argv)
 		float dis_near = sqrt(pow(AGV_POS.Current_X - Target_Point_near.X,2)+pow(AGV_POS.Current_Y - Target_Point_near.Y,2));
 		float dis_remote_to_near = sqrt(pow(Target_Point_remote.X - Target_Point_near.X,2)+pow(Target_Point_remote.Y - Target_Point_near.Y,2));
 
-		if((-30<AGV_POS.Current_Angle_GPS)&&(AGV_POS.Current_Angle_GPS<30)&&(AGV_POS.GET!=1)&&(dis_remote>5))AGV_POS.GET = 1;
-		if(((145<AGV_POS.Current_Angle_GPS)||(AGV_POS.Current_Angle_GPS<-145))&&(AGV_POS.GET!=3)&&(dis_near>5))AGV_POS.GET = 3;
+		if((-30<AGV_POS.Current_Angle_GPS)&&(AGV_POS.Current_Angle_GPS<30)&&(AGV_POS.GET!=1)&&(dis_remote>5))
+			{
+				AGV_POS.GET = 1;
+				ptr_turnback_remote = 0;
+				ptr_turnback_near = 0;//
+			}
+		if(((145<AGV_POS.Current_Angle_GPS)||(AGV_POS.Current_Angle_GPS<-145))&&(AGV_POS.GET!=3)&&(dis_near>5))
+			{
+			AGV_POS.GET = 3;
+			ptr_turnback_near = 0;
+			ptr_turnback_remote = 0;//
+			}
+
 
 		if(AGV_POS.GET==1)	//如果之前状态位前进直行
 		{
-			if(AGV_POS.Current_Y>Target_remote_y)AGV_POS.GET++;
+			if(AGV_POS.Current_Y>Target_remote_y)
+				{
+					AGV_POS.GET++;
+					ptr_turnback_remote = 0;//
+					ptr_turnback_near = 0;//
+				}
 		}else if(AGV_POS.GET==2) //如果之前状态为远端掉头
 		{
 			if(AGV_POS.Current_Angle_GPS>145)
@@ -327,11 +343,20 @@ int main(int argc,char **argv)
 		}
 		else if(AGV_POS.GET==3)		//如果之前状态为返回直行
 		{
-			if(AGV_POS.Current_Y<Target_near_y)AGV_POS.GET++;
+			if(AGV_POS.Current_Y<Target_near_y)
+				{
+					AGV_POS.GET++;
+					ptr_turnback_remote = 0;//
+					ptr_turnback_near = 0;//
+				}
 		}
 		else if(AGV_POS.GET==4)		//如果之前状态为近端掉头
 		{
-			if(AGV_POS.Current_Angle_GPS>-35)AGV_POS.GET = 1;
+			if((AGV_POS.Current_Angle_GPS>-45)&&(AGV_POS.Current_Angle_GPS<0))
+				{
+					AGV_POS.GET = 1;
+					ptr_turnback_near = 0;
+				}
 		}
 
 		switch(AGV_POS.GET)
