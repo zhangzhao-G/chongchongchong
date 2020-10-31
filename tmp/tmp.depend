@@ -1,0 +1,14 @@
+# depslib dependency file v1.0
+1604057582 source:c:\users\zzhao\desktop\study_cpp\tmp\main.cpp
+	<iostream>
+	"GPS.h"
+	<cmath>
+	<fstream>
+
+1604104394 c:\users\zzhao\desktop\study_cpp\tmp\gps.h
+	<iostream>
+	<cmath>
+	<iomanip>
+	<vector>
+	<stdlib.h>
+
